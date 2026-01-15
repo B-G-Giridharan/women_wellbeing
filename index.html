@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Women's Wellbeing AI</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; width: 100%; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; text-align: center; border-radius: 15px; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .mode-selector { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .mode-buttons { display: flex; gap: 15px; margin-top: 15px; }
+        .btn { padding: 12px 25px; border: 2px solid #667eea; background: white; color: #667eea; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn.active { background: #667eea; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+        .input-group { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .input-field { display: flex; flex-direction: column; }
+        .input-field label { font-weight: 600; margin-bottom: 8px; color: #333; }
+        .input-field input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1em; }
+        .input-field input:focus { outline: none; border-color: #667eea; }
+        .btn-submit { background: #667eea; color: white; padding: 15px 40px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; font-size: 1.1em; transition: all 0.3s; }
+        .btn-submit:hover { background: #764ba2; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+        .btn-submit:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .results { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .score-display { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 25px; }
+        .wellness-score { font-size: 3.5em; font-weight: bold; margin: 20px 0; }
+        .metric { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px; border-left: 5px solid #667eea; }
+        .metric-title { font-weight: 600; font-size: 1.1em; margin-bottom: 10px; color: #333; }
+        .metric-value { font-size: 1.4em; color: #667eea; font-weight: bold; }
+        .metric-info { font-size: 0.9em; color: #666; margin-top: 8px; }
+        .cycle-section { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; }
+        .cycle-phase { font-size: 2.5em; margin: 20px 0; }
+        .cycle-day { font-size: 1.2em; margin: 15px 0; opacity: 0.95; }
+        .phase-tips { list-style: none; margin-top: 15px; }
+        .phase-tips li { padding: 8px 0; display: flex; align-items: center; }
+        .phase-tips li:before { content: "✓"; margin-right: 10px; font-weight: bold; }
+        .recommendations { background: #e8f4f8; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 5px solid #17a2b8; }
+        .recommendations h3 { color: #17a2b8; margin-bottom: 15px; }
+        .recommendations ul { list-style-position: inside; color: #555; }
+        .recommendations li { padding: 8px 0; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 5px solid #f5576c; }
+        .loading { text-align: center; padding: 40px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none; }
+        @media (max-width: 768px) { 
+            .input-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.8em; }
+            .wellness-score { font-size: 2.5em; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [mode, setMode] = useState('automated');
+            const [loading, setLoading] = useState(false);
+            const [results, setResults] = useState(null);
+            const [error, setError] = useState(null);
+            const [formData, setFormData] = useState({
+                steps: 8000,
+                heart_rate: 70,
+                sleep_hours: 7,
+                stress_level: 5,
+                mood: 7,
+                screen_time: 6,
+                water_intake: 2,
+                exercise_minutes: 30,
+                cycle_day: 14,
+            });
+
+            const handleAnalyze = async () => {
+                setLoading(true);
+                setError(null);
+                setResults(null);
+
+                try {
+                    let url = 'http://127.0.0.1:5000/api/analyze/automated';
+                    let options = { method: 'GET' };
+
+                    if (mode === 'manual') {
+                        url = 'http://127.0.0.1:5000/api/analyze/manual';
+                        options = {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(formData),
+                        };
+                    }
+
+                    const response = await fetch(url, options);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        setError(data.message || 'Analysis failed');
+                        return;
+                    }
+
+                    setResults(data);
+                } catch (err) {
+                    setError(`Connection Error: ${err.message}`);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({
+                    ...prev,
+                    [name]: value
+                }));
+            };
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🩺 Women's Wellbeing AI</h1>
+                        <p>Comprehensive Health & Menstrual Cycle Analysis</p>
+                    </div>
+
+                    <div className="mode-selector">
+                        <label style={{ fontWeight: 600, fontSize: '1.1em' }}>Analysis Mode:</label>
+                        <div className="mode-buttons">
+                            <button
+                                className={`btn ${mode === 'automated' ? 'active' : ''}`}
+                                onClick={() => setMode('automated')}
+                            >
+                                🤖 Automated (No Input)
+                            </button>
+                            <button
+                                className={`btn ${mode === 'manual' ? 'active' : ''}`}
+                                onClick={() => setMode('manual')}
+                            >
+                                ✍️ Manual (User Input)
+                            </button>
+                        </div>
+                    </div>
+
+                    {mode === 'manual' && (
+                        <div className="input-group">
+                            <h2 style={{ marginBottom: '20px', color: '#333' }}>Enter Your Health Data</h2>
+                            <div className="input-grid">
+                                <div className="input-field">
+                                    <label>Steps (0-50000)</label>
+                                    <input type="number" name="steps" value={formData.steps} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Heart Rate (40-180 bpm)</label>
+                                    <input type="number" name="heart_rate" value={formData.heart_rate} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Sleep Hours (0-12)</label>
+                                    <input type="number" step="0.5" name="sleep_hours" value={formData.sleep_hours} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Stress Level (0-10)</label>
+                                    <input type="number" step="0.5" name="stress_level" value={formData.stress_level} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Mood (1-10)</label>
+                                    <input type="number" name="mood" value={formData.mood} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Screen Time (0-16 hours)</label>
+                                    <input type="number" name="screen_time" value={formData.screen_time} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Water Intake (liters)</label>
+                                    <input type="number" step="0.5" name="water_intake" value={formData.water_intake} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Exercise Minutes (0-240)</label>
+                                    <input type="number" name="exercise_minutes" value={formData.exercise_minutes} onChange={handleInputChange} />
+                                </div>
+                                <div className="input-field">
+                                    <label>Cycle Day (1-28)</label>
+                                    <input type="number" name="cycle_day" value={formData.cycle_day} onChange={handleInputChange} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <button className="btn-submit" onClick={handleAnalyze} disabled={loading}>
+                        {loading ? 'Analyzing...' : '🔍 Analyze'}
+                    </button>
+
+                    {loading && (
+                        <div className="loading">
+                            <div className="spinner"></div>
+                            <p style={{ marginTop: '20px', color: '#666' }}>Analyzing your health data...</p>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="error-message">
+                            <strong>Error:</strong> {error}
+                        </div>
+                    )}
+
+                    {results && results.status === 'success' && (
+                        <div className="results">
+                            <div className="score-display">
+                                <h2>Your Wellness Score</h2>
+                                <div className="wellness-score">{results.wellness_score}</div>
+                                <p>out of 100</p>
+                            </div>
+
+                            <div className="cycle-section">
+                                <h2 style={{ marginBottom: '10px' }}>Menstrual Cycle Analysis</h2>
+                                <div className="cycle-phase">{results.cycle.emoji} {results.cycle.phase.toUpperCase()}</div>
+                                <div className="cycle-day">Day {results.cycle.day} of 28</div>
+                                <p><strong>Energy Level:</strong> {results.cycle.energy_level}</p>
+                                <h3 style={{ marginTop: '15px', marginBottom: '10px' }}>Phase Tips:</h3>
+                                <ul className="phase-tips">
+                                    {results.cycle.tips.map((tip, idx) => (
+                                        <li key={idx}>{tip}</li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <h3 style={{ marginBottom: '15px', color: '#333' }}>Health Metrics</h3>
+                            <div className="metric">
+                                <div className="metric-title">💪 Activity Level</div>
+                                <div className="metric-value">{results.metrics.activity.level}</div>
+                                <div className="metric-info">Score: {results.metrics.activity.score}/100 | {results.metrics.activity.tips}</div>
+                            </div>
+
+                            <div className="metric">
+                                <div className="metric-title">😰 Stress Level</div>
+                                <div className="metric-value">{results.metrics.stress.level}</div>
+                                <div className="metric-info">Score: {results.metrics.stress.score}/100 | {results.metrics.stress.tips}</div>
+                            </div>
+
+                            <div className="metric">
+                                <div className="metric-title">⚡ Energy Level</div>
+                                <div className="metric-value">{results.metrics.energy.level}</div>
+                                <div className="metric-info">Score: {results.metrics.energy.score}/100</div>
+                            </div>
+
+                            <div className="metric">
+                                <div className="metric-title">😴 Sleep Quality</div>
+                                <div className="metric-value">{results.metrics.sleep.quality}</div>
+                                <div className="metric-info">Score: {results.metrics.sleep.score}/100 | {results.metrics.sleep.tips}</div>
+                            </div>
+
+                            {results.recommendations && results.recommendations.length > 0 && (
+                                <div className="recommendations">
+                                    <h3>💡 Personalized Recommendations</h3>
+                                    <ul>
+                                        {results.recommendations.map((rec, idx) => (
+                                            <li key={idx}>{rec}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('app'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
